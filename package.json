@@ -1,0 +1,7 @@
+{
+  "name": "emco-converter",
+  "dependencies": {
+    "sqlite3": "~2.1.17",
+    "debug": "~0.7.2"
+  }
+}

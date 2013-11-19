@@ -1,0 +1,28 @@
+// General
+lib-cov
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.gz
+*.sqlite
+
+pids
+logs
+results
+.DS_Store
+
+// Files
+npm-debug.log
+
+// Directories
+node_modules
+components
+build
+.c9revisions
+
+// Directory Contents
+public/**
+build/**
