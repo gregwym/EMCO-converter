@@ -12,6 +12,10 @@ var fileMap = {};
 
 console.log('Converting from ' + process.argv[2] + ' to ' + process.argv[3] + ', with from dir ' + fromDir + ' and to dir ' + toDir);
 
+var errorHandler = function(err) {
+  if (err) { debug(err); process.exit(1); }
+};
+
 // Copy file to `toDir` and insert into files table
 var fileDebug = require('debug')('file');
 var insertAndCopyFile = function(name, next) {
@@ -29,7 +33,7 @@ var insertAndCopyFile = function(name, next) {
 
   fs.writeFileSync(toDir + fileName, file);
   newdb.run('INSERT INTO files (hash, file_extension) VALUES (?, ?)', [hash, extension], function(err) {
-    if (err) { fileDebug(err); process.exit(1); }
+    errorHandler(err);
     fileDebug('#' + this.lastID + ' ' + fileName + ': ' + path);
     next(this.lastID);
   });
@@ -61,6 +65,7 @@ var convertVendor = function(next) {
 
   console.log('Start converting vendor data');
   olddb.each('SELECT * FROM vendors', function(err, row) {
+    errorHandler(err);
     console.log('Vendor: ' + row.name);
     var inserted = join.add();
     // Insert icon file
@@ -68,7 +73,7 @@ var convertVendor = function(next) {
       // Insert vendor
       var values = [row.name, iconID, row.url, row.address];
       newdb.run('INSERT INTO vendors (name, icon_id, url, address_line1) VALUES (?, ?, ?, ?)', values, function(err) {
-        if (err) { debug(err); process.exit(1); }
+        errorHandler(err);
         debug('Vendor #' + this.lastID + ': ' + JSON.stringify(values));
         inserted();
       });
