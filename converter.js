@@ -86,7 +86,7 @@ var convertVendor = function(next) {
   });
 };
 
-// Convert all product info
+// Convert product info for the given vendor
 var convertProduct = function(oldVendorID, newVendorID, next) {
   var join = futures.join();
 
@@ -102,6 +102,32 @@ var convertProduct = function(oldVendorID, newVendorID, next) {
       newdb.run('INSERT INTO products (vendor_id, name, icon_id) VALUES (?, ?, ?)', values, function(err) {
         errorHandler(err);
         debug('Product #' + this.lastID + ': ' + JSON.stringify(values));
+        convertModel(oldVendorID, row.TypeID, this.lastID, inserted);
+      });
+    });
+  }, function(err, numOfRows) {
+    join.when(function() {
+      next();
+    });
+  });
+};
+
+// Convert model info for the given vendor's product
+var convertModel = function(oldVendorID, oldProductID, newProductID, next) {
+  var join = futures.join();
+
+  olddb.each('SELECT * FROM products WHERE vID=? AND pType=?', [oldVendorID, oldProductID], function(err, row) {
+    errorHandler(err);
+    console.log('    Model: ' + row.name);
+    var inserted = join.add();
+
+    // Insert icon file
+    insertAndCopyFile(row.Image, function(iconID) {
+      // Insert model
+      var values = [newProductID, row.name, iconID, row.price, row.pricePer];
+      newdb.run('INSERT INTO models (product_id, name, icon_id, price, price_unit) VALUES (?, ?, ?, ?, ?)', values, function(err) {
+        errorHandler(err);
+        debug('MODEL #:' + this.lastID + ': ' + JSON.stringify(values));
         inserted();
       });
     });
