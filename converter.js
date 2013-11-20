@@ -59,6 +59,29 @@ var buildFileMap = function(next) {
   });
 };
 
+// Convert document type
+var convertDocumentType = function(next) {
+  var join = futures.join();
+
+  olddb.each('SELECT * FROM DocType', function(err, row) {
+    errorHandler(err);
+    console.log('DocType: ' + row.Name);
+    var inserted = join.add();
+
+    // Insert doc type
+    var values = [row.TypeID, row.Name];
+    newdb.run('INSERT INTO doc_types (doc_type_id, name) VALUES (?, ?)', values, function(err) {
+      errorHandler(err);
+      debug('DocType #' + this.lastID + ': ' + values);
+      inserted();
+    });
+  }, function(err, numOfRows) {
+    join.when(function() {
+      next();
+    });
+  });
+};
+
 // Convert all vendor info
 var convertVendor = function(next) {
   var join = futures.join();
@@ -152,5 +175,6 @@ sequence
     next();
   })
   .then(buildFileMap)
+  .then(convertDocumentType)
   .then(convertVendor)
   .then(complete);
