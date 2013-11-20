@@ -17,9 +17,13 @@ var insertAndCopyFile = function(path) {
   var sha = crypto.createHash('sha256');
   var file = fs.readFileSync(path);
   var hash = sha.update(file).digest('hex');
-  fileDebug(hash + ': ' + path);
+  var extension = path.substr(path.lastIndexOf('.') + 1, path.length);
+  var fileName = hash + '.' + extension;
 
+  fileDebug(fileName + ': ' + path);
 
+  fs.writeFileSync(toDir + fileName, file);
+  newdb.run('INSERT INTO files (hash, file_extension) VALUES (?, ?)', [extension, hash]);
 };
 
 (function(end) {
