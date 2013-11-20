@@ -12,7 +12,11 @@ var fileMap = {};
 console.log('Converting from ' + process.argv[2] + ' to ' + process.argv[3] + ', with from dir ' + fromDir + ' and to dir ' + toDir);
 
 var fileDebug = require('debug')('file');
-var insertAndCopyFile = function(path) {
+var insertAndCopyFile = function(path, next) {
+  if (typeof path !== 'string') {
+    return next(null);
+  }
+
   // Get the file hash
   var sha = crypto.createHash('sha256');
   var file = fs.readFileSync(path);
@@ -23,7 +27,10 @@ var insertAndCopyFile = function(path) {
   fileDebug(fileName + ': ' + path);
 
   fs.writeFileSync(toDir + fileName, file);
-  newdb.run('INSERT INTO files (hash, file_extension) VALUES (?, ?)', [extension, hash]);
+  newdb.run('INSERT INTO files (hash, file_extension) VALUES (?, ?)', [extension, hash], function(err) {
+    if (err) { fileDebug(err); process.exit(1); }
+    next(this.lastID);
+  });
 };
 
 (function(end) {
@@ -49,10 +56,16 @@ var insertAndCopyFile = function(path) {
   olddb.all('SELECT * FROM vendors', function(err, rows) {
     rows.forEach(function(row) {
       debug(JSON.stringify(row));
+      // Insert icon file
       var path = fileMap[row.logo];
-      if (typeof path === 'string') {
-        var fileId = insertAndCopyFile(path);
-      }
+      insertAndCopyFile(path, function(iconID) {
+        // Insert vendor
+        var values = [row.name, iconID, row.url, row.address];
+        newdb.run('INSERT INTO vendors (name, icon_id, url, address_line1) VALUES (?, ?, ?, ?)', values, function(err) {
+          if (err) { debug(err); process.exit(1); }
+          debug('Vendor inserted: ' + this.sql + ' ' + JSON.stringify(values));
+        });
+      });
     });
   });
 });
