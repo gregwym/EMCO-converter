@@ -86,7 +86,7 @@ var convertDocumentType = function(next) {
 var convertVendor = function(next) {
   var join = futures.join();
 
-  olddb.each('SELECT * FROM vendors', function(err, row) {
+  olddb.each('SELECT * FROM vendors WHERE status != 0', function(err, row) {
     errorHandler(err);
     console.log('Vendor: ' + row.name);
     var inserted = join.add();
@@ -151,6 +151,33 @@ var convertModel = function(oldVendorID, oldProductID, newProductID, next) {
       newdb.run('INSERT INTO models (product_id, name, icon_id, price, price_unit) VALUES (?, ?, ?, ?, ?)', values, function(err) {
         errorHandler(err);
         debug('MODEL #:' + this.lastID + ': ' + JSON.stringify(values));
+        convertDocument(row.id, this.lastID, inserted);
+      });
+    });
+  }, function(err, numOfRows) {
+    join.when(function() {
+      next();
+    });
+  });
+};
+
+// Convert document info for the given model
+var convertDocument = function(oldModelID, newModelID, next) {
+  var join = futures.join();
+
+  olddb.each('SELECT * FROM documents WHERE pID=?', [oldModelID], function(err, row) {
+    errorHandler(err);
+    console.log('      Document: ' + row.filename);
+    var inserted = join.add();
+
+    // Insert document file
+    insertAndCopyFile(row.filename, function(fileID) {
+      if (fileID === null) { return inserted(); }
+      // Insert model
+      var values = [newModelID, row.filename, row.filename, row.dType, fileID];
+      newdb.run('INSERT INTO documents (model_id, name, original_name, doc_type_id, file_id) VALUES (?, ?, ?, ?, ?)', values, function(err) {
+        errorHandler(err);
+        debug('DOCUMENT #:' + this.lastID + ': ' + JSON.stringify(values));
         inserted();
       });
     });
