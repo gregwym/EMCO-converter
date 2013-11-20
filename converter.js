@@ -12,7 +12,8 @@ var fileMap = {};
 console.log('Converting from ' + process.argv[2] + ' to ' + process.argv[3] + ', with from dir ' + fromDir + ' and to dir ' + toDir);
 
 var fileDebug = require('debug')('file');
-var insertAndCopyFile = function(path, next) {
+var insertAndCopyFile = function(name, next) {
+  var path = fileMap[name];
   if (typeof path !== 'string') {
     return next(null);
   }
@@ -38,7 +39,7 @@ var insertAndCopyFile = function(path, next) {
   var debug = require('debug')('walker');
   var walk = require('walk');
 
-  debug('Start walking');
+  console.log('Start building file map');
   var walker = walk.walkSync(fromDir, null);
 
   walker.on('file', function (root, fileStats, next) {
@@ -48,17 +49,17 @@ var insertAndCopyFile = function(path, next) {
 
   walker.on('end', function() {
     debug(JSON.stringify(fileMap, null, ' '));
-    debug('Finished walking');
+    console.log('File map built successfully');
     end();
   });
 })(function() {
   // Convert all vendor info into new db
+  console.log('Start converting vendor data');
   olddb.all('SELECT * FROM vendors', function(err, rows) {
     rows.forEach(function(row) {
-      debug(JSON.stringify(row));
+      console.log('Vendor: ' + rows.name);
       // Insert icon file
-      var path = fileMap[row.logo];
-      insertAndCopyFile(path, function(iconID) {
+      insertAndCopyFile(row.logo, function(iconID) {
         // Insert vendor
         var values = [row.name, iconID, row.url, row.address];
         newdb.run('INSERT INTO vendors (name, icon_id, url, address_line1) VALUES (?, ?, ?, ?)', values, function(err) {
