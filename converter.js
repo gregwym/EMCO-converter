@@ -63,11 +63,11 @@ var buildFileMap = function(next) {
 var convertVendor = function(next) {
   var join = futures.join();
 
-  console.log('Start converting vendor data');
   olddb.each('SELECT * FROM vendors', function(err, row) {
     errorHandler(err);
     console.log('Vendor: ' + row.name);
     var inserted = join.add();
+
     // Insert icon file
     insertAndCopyFile(row.logo, function(iconID) {
       // Insert vendor
@@ -75,11 +75,37 @@ var convertVendor = function(next) {
       newdb.run('INSERT INTO vendors (name, icon_id, url, address_line1) VALUES (?, ?, ?, ?)', values, function(err) {
         errorHandler(err);
         debug('Vendor #' + this.lastID + ': ' + JSON.stringify(values));
-        inserted();
+        convertProduct(row.id, this.lastID, inserted);
       });
     });
   }, function(err, numOfRows) {
     // Continue when all vendors were inserted
+    join.when(function() {
+      next();
+    });
+  });
+};
+
+// Convert all product info
+var convertProduct = function(oldVendorID, newVendorID, next) {
+  var join = futures.join();
+
+  olddb.each('SELECT DISTINCT pt.TypeID, pr.vID, pt.Name, pt.Image from products pr, ProductType pt WHERE pr.pType = pt.TypeID and pr.vID=?', [oldVendorID], function(err, row) {
+    errorHandler(err);
+    console.log('  Product: ' + row.Name);
+    var inserted = join.add();
+
+    // Insert icon file
+    insertAndCopyFile(row.Image, function(iconID) {
+      // Insert product
+      var values = [newVendorID, row.Name, iconID];
+      newdb.run('INSERT INTO products (vendor_id, name, icon_id) VALUES (?, ?, ?)', values, function(err) {
+        errorHandler(err);
+        debug('Product #' + this.lastID + ': ' + JSON.stringify(values));
+        inserted();
+      });
+    });
+  }, function(err, numOfRows) {
     join.when(function() {
       next();
     });
